@@ -78,7 +78,7 @@ class GitHubClient:
 
         return sorted_files
     
-    async def download_contents(self, contents: list[str]) -> list[str]:
+'''    async def download_contents(self, contents: list[str]) -> list[str]:
         if not isinstance(contents, list):
             logger.error(LogMessage.INCORRECT_TYPE.value)
             return []
@@ -90,7 +90,7 @@ class GitHubClient:
         contents_list = []
 
 
-'''        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient() as client:
             async for link in contents:
                 try:
                     response = await client.get(link)
