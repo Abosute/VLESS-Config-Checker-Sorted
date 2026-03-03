@@ -4,6 +4,7 @@ from httpx import HTTPStatusError
 from loguru import logger
 from enum import Enum
 from typing import Optional
+from time import time
 
 class LogMessage(Enum):
     SUCCESS = 'Success'
@@ -55,7 +56,7 @@ class GitHubClient:
         except Exception as e:
             logger.error(LogMessage.UNEXPECTED.value.format(e))
 
-    async def get_sorted_by(self, *, type_file: str | list="file", name_file: str | list='', client: Optional[httpx.AsyncClient]=None) -> list[str]:
+    async def get_sorted_by(self, *, type_file: str | list="all", name_file: str | list='', client: Optional[httpx.AsyncClient]=None) -> list[str]:
         if not client:
             async with httpx.AsyncClient() as independent_client:
                 files = await self._get_contents(independent_client)
@@ -73,8 +74,12 @@ class GitHubClient:
         sorted_files = []
 
         for file in files:
-            sorted_by_type: bool = type_file == file['type'] if isinstance(type_file, str) else file['type'] in type_file
             sorted_by_name: bool = name_file in file['name'] if isinstance(name_file, str) else file['name'] in name_file #if the name is a str, it is checked for inclusion
+
+            if type_file != 'all':
+                sorted_by_type: bool = type_file == file['type'] if isinstance(type_file, str) else file['type'] in type_file
+            else:
+                sorted_by_type = True
 
             if sorted_by_type and sorted_by_name:
                 sorted_files.append(file['download_url'])
@@ -113,14 +118,21 @@ class GitHubClient:
             return contents_list
         
 
-'''client = GitHubClient("https://github.com/Magerko/universal-media-downloader")'''
+client = GitHubClient("https://github.com/Epodonios/v2ray-configs")
 
-'''async def main():
+async def main():
+    start = time()
     ddd = await client.get_sorted_by(name_file='.txt', type_file=['file'])
     print(ddd)
 
     ddddd = await client.download_contents(ddd)
 
-    print(ddddd)
+    end = time()
 
-asyncio.run(main())'''
+    list_ = [link for link in set(ddddd) if link.startswith("vless://")]
+    print("\n\n\n")
+    print(list_[:50])
+    print(len(list_))
+    print(end-start)
+
+asyncio.run(main())
