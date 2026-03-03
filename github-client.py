@@ -34,6 +34,9 @@ class GitHubClient:
 
         url = new_url.replace("github.com/", "api.github.com/repos/")
 
+        if not url.startswith("https://"):
+            url = "https://" + url
+
         if url.startswith("https://api.github.com/"):
             self._api_url = url + "/contents/"
         else:
@@ -78,7 +81,7 @@ class GitHubClient:
 
         return sorted_files
     
-'''    async def download_contents(self, contents: list[str]) -> list[str]:
+    async def download_contents(self, contents: list[str]) -> list[str]:
         if not isinstance(contents, list):
             logger.error(LogMessage.INCORRECT_TYPE.value)
             return []
@@ -88,32 +91,31 @@ class GitHubClient:
             return []
         
         contents_list = []
-
+    
 
         async with httpx.AsyncClient() as client:
-            async for link in contents:
-                try:
-                    response = await client.get(link)
+            promise = [client.get(link) for link in contents]
 
-                    response.raise_for_status()
-
-                    test = response.text
-
-                    contents_list.append(test)
-                except HTTPStatusError:
+            down_content = await asyncio.gather(*promise, return_exceptions=True)
+                
+            for content in down_content:
+                if isinstance(content, httpx.Response):
+                    try:
+                        content.raise_for_status()
+                        contents_list.extend(content.text.split('\n'))
+                    except HTTPStatusError:
+                        pass
+                    except Exception:
+                        pass
+                else:
                     pass
-                except Exception:
-                    pass
 
-            return contents_list'''
+            return contents_list
         
 
+'''client = GitHubClient("https://github.com/Magerko/universal-media-downloader")'''
 
-
-
-client = GitHubClient("https://github.com/Magerko/universal-media-downloader")
-
-async def main():
+'''async def main():
     ddd = await client.get_sorted_by(name_file='.txt', type_file=['file'])
     print(ddd)
 
@@ -121,4 +123,4 @@ async def main():
 
     print(ddddd)
 
-asyncio.run(main())
+asyncio.run(main())'''
