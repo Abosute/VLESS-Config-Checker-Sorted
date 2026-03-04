@@ -4,7 +4,6 @@ from httpx import HTTPStatusError
 from loguru import logger
 from enum import Enum
 from typing import Optional
-from time import time
 
 class LogMessage(Enum):
     SUCCESS = 'Success'
@@ -112,27 +111,5 @@ class GitHubClient:
                         pass
                     except Exception:
                         pass
-                else:
-                    pass
 
             return contents_list
-        
-
-client = GitHubClient("https://github.com/Epodonios/v2ray-configs")
-
-async def main():
-    start = time()
-    ddd = await client.get_sorted_by(name_file='.txt', type_file=['file'])
-    print(ddd)
-
-    ddddd = await client.download_contents(ddd)
-
-    end = time()
-
-    list_ = [link for link in set(ddddd) if link.startswith("vless://")]
-    print("\n\n\n")
-    print(list_[:50])
-    print(len(list_))
-    print(end-start)
-
-asyncio.run(main())
