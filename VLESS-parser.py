@@ -1,10 +1,12 @@
 import httpx
 import asyncio
+import sys
 from httpx import HTTPStatusError
 from loguru import logger
 from enum import Enum
 from typing import Optional
 from idinahuichmo import V2RayProxy as BaseV2RayProxy #он меня зае**л
+from tqdm import tqdm
 
 NAME_FOR_BEST_CONFIGS = "best_proxies"
 
@@ -22,8 +24,18 @@ class VlessPingAndSorted:
         self.timeout = timeout
         self.sni = ['x5.ru', 'yandex.ru', 'vk.com', 'mail.ru', 'ozon.ru', 'sberbank.ru']
 
-    def sorted_white_list_links(self, raw_links: list[str], *, include_sni: bool=True) -> list[str]:
-        if not isinstance(include_sni, bool) or not isinstance(raw_links, list):
+    @staticmethod
+    def _check_exception(obj, check_instance:type, check_empty: bool=None) -> None:
+        if not isinstance(obj, check_instance):
+            logger.error(LogMessage.TYPE_ERROR.value)
+            raise TypeError
+        
+        if check_empty and not obj:
+            logger.error(LogMessage.EMPTY_FILES.value)
+            raise ValueError
+
+    def sorted_vless_links(self, raw_links: list[str], *, white_list: bool=True) -> list[str]:
+        if not isinstance(white_list, bool) or not isinstance(raw_links, list):
             logger.error(LogMessage.TYPE_ERROR.value)
             return []
         
@@ -31,31 +43,13 @@ class VlessPingAndSorted:
             logger.error(LogMessage.EMPTY_FILES.value)
             return []
         
-        clean = []
+        clean = [link for link in raw_links if link.startswith('vless://')]
 
-        for link in raw_links:
-            if link.startswith('vless://') and 'security=reality' in link:
-                sni: bool = any(inc in link for inc in self.sni) if include_sni else True
-
-                if sni:
-                    clean.append(link)
-
-        return clean
-    
-    def sorted_vless_links(self, raw_links: list[str]):
-        if not isinstance(raw_links, list):
-            logger.error(LogMessage.TYPE_ERROR.value)
-            return []
-        
-        if not raw_links:
-            logger.error(LogMessage.EMPTY_FILES.value)
-            return []
-        
-        clean = []
-
-        for link in raw_links:
-            if link.startswith('vless://'):
-                clean.append(link)
+        if white_list:
+            return [
+                link for link in clean 
+                if 'security=reality' in link and any(inc in link for inc in self.sni)
+            ]
 
         return clean
     
@@ -82,17 +76,43 @@ class VlessPingAndSorted:
                 if proxy:
                     proxy.stop()
 
-    async def check_connection_from_list(self, links:list[str]):
+    async def check_connection_from_list(self, links: list[str]) -> list[dict[str, int]]:
+        if not links:
+            return []
+
         promise = [self._check_connection(link) for link in links if link.startswith('vless://')]
+        alive = []
 
-        for task in asyncio.as_completed(promise):
-            result = await task
+        handler_id = logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True, format="<green>{time:HH:mm:ss}</green> | <level>{message}</level>")
+        logger.remove(0) 
 
-            if result['latency'] > 0:
-                logger.success(f"АХУЕТЬ ЕСТЬ ЖИВОЙ {result['link'], result['latency']}")
+        try:
+            with tqdm(total=len(promise), desc="🔍 Проверка", unit="cfg", colour="green") as pbar:
+                for task in asyncio.as_completed(promise):
+                    result = await task
 
-            logger.info(f"Проверил: {result['latency']}")
+                    if result['latency'] > 0:
+                        logger.success(f"ЕСТЬ ЖИВОЙ: {result['latency']}ms")
+                        alive.append(result)
+                    else:
+                        logger.info(f"Мертв: {result['latency']}")
 
+                    pbar.update(1)
+        finally:
+            logger.remove(handler_id)
+            logger.add(sys.stderr, format="<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>")
+
+        return alive
+
+    def write_alive_in_file(self, ping_list: list, name_file:str='best_cfg') -> None:
+        self._check_exception(ping_list, list, True)
+        self._check_exception(name_file, str, True)
+
+        sorted_alive = sorted([link for link in ping_list if link['latency'] > 0], key=lambda link: link['latency'])
+
+        with open(name_file + '.txt', 'w', encoding='UTF-8') as file:
+            for link in sorted_alive:
+                file.write(f"{link['link'].strip()}\n")
 
 async def main():
     # Создаем экземпляр нашего комбайна
@@ -105,7 +125,9 @@ async def main():
     print(f"🚀 Начинаю проверку {len(raw_links)} конфигов...")
     
     # Запускаем наш реактивный движок
-    await pon.check_connection_from_list(raw_links)
+    ASA = await pon.check_connection_from_list(raw_links)
+
+    pon.write_alive_in_file(ASA)
     
     print("🏁 Проверка всех ссылок завершена.")
 
