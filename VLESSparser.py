@@ -86,10 +86,10 @@ class VlessPingAndSorted:
 
                 if result['latency'] > 0:
                     alive.append(result)
+                    logger.critical("НИХУЯСЕБЕ")
 
                 if len(alive) >= max_alive:
                     logger.info("Набралось нужное кол-во")
-                    task.cancel()
                     return alive
 
                 pbar.update(1)

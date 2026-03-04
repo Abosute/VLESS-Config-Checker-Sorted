@@ -20,7 +20,7 @@ URL_BASE = [
     'https://github.com/kort0881/vpn-vless-configs-russia'
 ]
 
-client = GitHubClient('https://github.com/Epodonios/v2ray-configs')
+client = GitHubClient('https://github.com/igareck/vpn-configs-for-russia')
 vless = VlessPingAndSorted()
 
 async def main():
@@ -28,9 +28,13 @@ async def main():
 
     penis = await client.download_contents(y_menya_net_fantasii_list)
 
-    chlen = list(set(vless.sorted_vless_links(penis, white_list=True)))
+    chlen = list(set(vless.sorted_vless_links(penis)))
 
-    await vless.check_connection_from_list(chlen)
+    eba = await vless.check_connection_from_list(chlen, max_alive=100)
+
+    vless.write_alive_in_file(eba)
+
+
 
 if __name__ == '__main__':
     asyncio.run(main())
