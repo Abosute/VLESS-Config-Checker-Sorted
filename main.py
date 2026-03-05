@@ -21,7 +21,7 @@ URL_BASE = [
 ]
 
 client = GitHubClient('https://github.com/igareck/vpn-configs-for-russia')
-vless = VlessPingAndSorted()
+vless = VlessPingAndSorted(concurrent_limit=100)
 
 async def main():
     y_menya_net_fantasii_list = await client.get_sorted_by(type_file="file", name_file=".txt")
